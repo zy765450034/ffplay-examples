@@ -345,15 +345,8 @@ int audio_decode_frame(VideoState *is, uint8_t *audio_buf,uint8_t *audio_buf1, i
             }
             data_size = 0;
             if(got_frame) {
-//                if (is->swr_ctx) {
-//                    swr_convert(is->swr_ctx,&audio_buf, MAX_AUDIO_FRAME_SIZE,(const uint8_t **)is->audio_frame.data , is->audio_frame.nb_samples);
-//                }
                 data_size = is->audio_frame.nb_samples * av_get_bytes_per_sample(is->audio_frame.format);
-                //	data_size = av_samples_get_buffer_size(NULL,
-                //					       is->audio_ctx->channels,
-                //					       is->audio_frame.nb_samples,
-                //					       is->audio_ctx->sample_fmt,
-                //					       1);
+ 
                 	assert(data_size <= buf_size);
                 	memcpy(audio_buf, is->audio_frame.data[0], data_size);
                     memcpy(audio_buf1, is->audio_frame.data[1], data_size);
@@ -451,67 +444,17 @@ OSStatus audio_unit_callback(void *inRefCon,
         len1 = is->audio_buf_size - is->audio_buf_index;
         if(len1 > len)
             len1 = len;
-//        float                       *_outData;
-//        _outData = (float *)calloc(1024, sizeof(float));
+
         memcpy((float *)ioData->mBuffers[0].mData, (uint8_t *)is->audio_buf + is->audio_buf_index, len1);
         memcpy((float *)ioData->mBuffers[1].mData, (uint8_t *)is->audio_buf1 + is->audio_buf_index, len1);
         ioData->mBuffers[0].mDataByteSize = len1;
         ioData->mBuffers[1].mDataByteSize = len1;
-//        ioData->mBuffers[0].mNumberChannels = 1;
-//        ioData->mNumberBuffers = 2;
-    
-//        memcpy((float *)ioData->mBuffers[1].mData, (uint8_t *)is->audio_buf + is->audio_buf_index, len1);
-//        if (is->audio_wanted_spec.asbd.mBitsPerChannel/8 == 4){
-//            float zero = 0.0;
-//            
-//            for (int iBuffer=0; iBuffer < ioData->mNumberBuffers; ++iBuffer) {
-//                
-//                int thisNumChannels = ioData->mBuffers[iBuffer].mNumberChannels;
-//                
-//                for (int iChannel = 0; iChannel < thisNumChannels; ++iChannel) {
-//                    vDSP_vsadd(_outData+iChannel, is->audio_wanted_spec.asbd.mBitsPerChannel/8, &zero, (float *)ioData->mBuffers[iBuffer].mData, thisNumChannels, inNumberFrames);
-//                }
-//            }
-//
-//        }else if (is->audio_wanted_spec.asbd.mBitsPerChannel/8== 2){
-//            float scale = (float)INT16_MAX;
-//            vDSP_vsmul(_outData, 1, &scale, _outData, 1, inNumberFrames*is->audio_wanted_spec.asbd.mBitsPerChannel/8);
-//            for (int iBuffer=0; iBuffer < ioData->mNumberBuffers; ++iBuffer) {
-//                
-//                int thisNumChannels = ioData->mBuffers[iBuffer].mNumberChannels;
-//                
-//                for (int iChannel = 0; iChannel < thisNumChannels; ++iChannel) {
-//                    vDSP_vfix16(_outData+iChannel, is->audio_wanted_spec.asbd.mBitsPerChannel/8, (SInt16 *)ioData->mBuffers[iBuffer].mData+iChannel, thisNumChannels, inNumberFrames);
-//                }
-//            }
-//        }
-        
-        
-        
+
         len -= len1;
-//        ioData->mBuffers[0].mData += len1;
+
         is->audio_buf_index += len1;
        
-//    }
-//   int j = 90;
-//    //	double cycleLength = 44100. / 2200./*frequency*/;
-//    double cycleLength = 44100. / 880.0;
-//    int frame = 0;
-//    for (frame = 0; frame < inNumberFrames; ++frame)
-//    {
-//        Float32 *data = (Float32*)ioData->mBuffers[0].mData;
-//        (data)[frame] = (Float32)sin (2 * M_PI * (j / cycleLength));
-//        
-//        // copy to right channel too
-//        data = (Float32*)ioData->mBuffers[1].mData;
-//        (data)[frame] = (Float32)sin (2 * M_PI * (j / cycleLength));
-//        
-//        j += 1.0;
-//        if (j > cycleLength)
-//            j -= cycleLength;
-//    }
 
-    
     return noErr;
 }
 void audio_callback(void *userdata, Uint8 *stream, int len) {
@@ -547,10 +490,6 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
 
 void audioSpec_init(VideoState *is, Float64 sample_rate){
     
-    
-
-    
-
     // is audio input available?
     AudioComponentDescription outputcd = {0}; // 10.6 version
     outputcd.componentType = kAudioUnitType_Output;
@@ -562,33 +501,13 @@ void audioSpec_init(VideoState *is, Float64 sample_rate){
         printf ("can't get output unit");
         exit (-1);
     }
-//    AudioComponentInstanceNew(comp, &is->audio_wanted_spec.rioUnit);
     CheckError (AudioComponentInstanceNew(comp, &is->audio_wanted_spec.rioUnit),
                 "Couldn't open component for outputUnit");
 
-//    is->audio_wanted_spec.asbd.mSampleRate = sample_rate;
-    UInt32 size;
-    // Check the output stream format
-//    size = sizeof(AudioStreamBasicDescription);
-//    CheckError(AudioUnitSetProperty(is->audio_wanted_spec.rioUnit,
-//                                    kAudioUnitProperty_StreamFormat,
-//                                    kAudioUnitScope_Input,
-//                                    0,
-//                                    &is->audio_wanted_spec.asbd,
-//                                    size),
-//               "Couldn't set the hardware output stream format");
-
-    // register render callback
     AURenderCallbackStruct input;
     input.inputProc = audio_unit_callback;
     input.inputProcRefCon = is;
-    
-//    AudioUnitSetProperty(is->audio_wanted_spec.rioUnit,
-//                         kAudioUnitProperty_SetRenderCallback,
-//                         kAudioUnitScope_Input,
-//                         0,
-//                         &input, 
-//                         sizeof(input));
+
     CheckError(AudioUnitSetProperty(is->audio_wanted_spec.rioUnit,
                                     kAudioUnitProperty_SetRenderCallback,
                                     kAudioUnitScope_Input,
@@ -596,12 +515,9 @@ void audioSpec_init(VideoState *is, Float64 sample_rate){
                                     &input,
                                     sizeof(input)),
                "AudioUnitSetProperty failed");
-//    AudioUnitInitialize(is->audio_wanted_spec.rioUnit);
+
     CheckError (AudioUnitInitialize(is->audio_wanted_spec.rioUnit),
                 "Couldn't initialize output unit");
-  
-//    AudioOutputUnitStart(is->audio_wanted_spec.rioUnit);
-//    CheckError (AudioOutputUnitStart(is->audio_wanted_spec.rioUnit), "Couldn't start output unit");
 }
 static Uint32 sdl_refresh_timer_cb(Uint32 interval, void *opaque) {
     SDL_Event event;
